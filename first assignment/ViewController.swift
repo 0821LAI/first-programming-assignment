@@ -34,5 +34,42 @@ class ViewController: UIViewController {
             print("Invalid URL")
             return
         }
+        
+        //Fetching JSON Data
+        
+        // Uses the system's shared network session, and creates a data task to send a request to the specified URL (Weak reference to prevent memory retain cycles)
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+                   
+                    //JSONSerialization.jsonObject: Converts the data into a JSON object
+                    //data!: Force unwraps the network response data (assumes data exists)
+                    //as! [String: Any]: Force cast to dictionary type
+                    let json = try! JSONSerialization.jsonObject(with: data!, options: []) as! [String: Any]
+                    
+                    //Extracts the "urls" key value from the JSON dictionary,Force cast to dictionary type (because URLs contain multiple image sizes)
+                    let urls = json["urls"] as! [String: Any]
+            
+                    //Converts the string to a URL object, ! force unwrap, assumes the URL format is correct
+                    let imageUrlString = urls["regular"] as! String
+                    
+                    //Converts the string to a URL object, ! force unwrap, assumes the URL format is correct
+                    let imageUrl = URL(string: imageUrlString)!
+            
+                    //Calls the image download function, self? safe call because there is a weak sel
+                    self?.downloadImage(from: imageUrl)
+                }.resume()
+            }
+    
+            //Downloading Image
+            private func downloadImage(from url: URL) {
+                //Another network request, this time to download the actual image data
+                URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+                    
+                    //Two ! marks indicate force unwrapping of both data and image creation
+                    let image = UIImage(data: data!)!
+                    
+                    DispatchQueue.main.async {
+                        self?.imageView.image = image
+                    }
+                }.resume()
     }
 }
