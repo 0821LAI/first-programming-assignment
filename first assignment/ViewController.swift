@@ -5,10 +5,15 @@
 //  Created by lai Tang on 9/5/25.
 //
 
-// ViewController.swift
 import UIKit
+import Firebase
+import FirebaseFirestore
 
 class ViewController: UIViewController {
+    
+    // Firebase
+    private let db = Firestore.firestore()
+    private var userId: String = ""
     
     private let titleLabel: UILabel = {
         let label = UILabel()
@@ -38,7 +43,6 @@ class ViewController: UIViewController {
         return button
     }()
     
-    // Like Button
     private let likeButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Like", for: .normal)
@@ -49,7 +53,6 @@ class ViewController: UIViewController {
         return button
     }()
     
-    // View My Likes Button
     private let viewLikesButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("View My Likes", for: .normal)
@@ -60,21 +63,24 @@ class ViewController: UIViewController {
         return button
     }()
     
-    // Current URL
     private var currentImageUrl: String?
+    private var currentImageInfo: [String: Any]?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
         
-        // Enable to see on the Screen
+        setupUI()
+        initializeUser()
+    }
+    
+    private func setupUI() {
         view.addSubview(titleLabel)
         view.addSubview(imageView)
         view.addSubview(refreshButton)
         view.addSubview(likeButton)
         view.addSubview(viewLikesButton)
         
-        // Set frames
         titleLabel.frame = CGRect(x: 20, y: 150, width: view.frame.width - 40, height: 40)
         imageView.frame = CGRect(x: 0, y: 0, width: 300, height: 300)
         imageView.center = view.center
@@ -82,11 +88,14 @@ class ViewController: UIViewController {
         likeButton.frame = CGRect(x: 50, y: view.frame.height - 140, width: (view.frame.width - 120) / 2, height: 40)
         viewLikesButton.frame = CGRect(x: 70 + (view.frame.width - 120) / 2, y: view.frame.height - 140, width: (view.frame.width - 120) / 2, height: 40)
         
-        // Button actions
         refreshButton.addTarget(self, action: #selector(refreshButtonTapped), for: .touchUpInside)
         likeButton.addTarget(self, action: #selector(likeButtonTapped), for: .touchUpInside)
         viewLikesButton.addTarget(self, action: #selector(viewLikesButtonTapped), for: .touchUpInside)
-        
+    }
+    
+    private func initializeUser() {
+        userId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        print("User ID: \(userId)")
         getRandomPhoto()
     }
     
@@ -94,33 +103,70 @@ class ViewController: UIViewController {
         getRandomPhoto()
     }
     
-    // Like button function
     @objc private func likeButtonTapped() {
-        guard let imageUrl = currentImageUrl else { return }
-        
-        // Save
-        var likedImages = UserDefaults.standard.array(forKey: "likedImages") as? [String] ?? []
-        if !likedImages.contains(imageUrl) {
-            likedImages.append(imageUrl)
-            UserDefaults.standard.set(likedImages, forKey: "likedImages")
-            
-            // Pop up screen
-            let alert = UIAlertController(title: "👍", message: "Added to likes!", preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
-            present(alert, animated: true)
+        guard let imageInfo = currentImageInfo else {
+            showAlert(title: "Error", message: "No image to like")
+            return
         }
+        
+        saveToFirebase(imageInfo: imageInfo)
     }
     
-    //
     @objc private func viewLikesButtonTapped() {
         let likesVC = LikesViewController()
+        likesVC.userId = userId
         present(likesVC, animated: true)
+    }
+    
+    // Save to Firebase
+    private func saveToFirebase(imageInfo: [String: Any]) {
+        let likeData: [String: Any] = [
+            "userId": userId,
+            "imageUrl": imageInfo["imageUrl"] as? String ?? "",
+            "imageId": imageInfo["imageId"] as? String ?? "",
+            "description": imageInfo["description"] as? String ?? "",
+            "photographer": imageInfo["photographer"] as? String ?? "",
+            "photographerUrl": imageInfo["photographerUrl"] as? String ?? "",
+            "timestamp": FieldValue.serverTimestamp(),
+            "foodType": imageInfo["foodType"] as? String ?? "food"
+        ]
+        
+        //check if there is already been liked
+        db.collection("likes")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("imageId", isEqualTo: imageInfo["imageId"] as? String ?? "")
+            .getDocuments { [weak self] (querySnapshot, error) in
+                
+                if let error = error {
+                    print("Error checking existing like: \(error)")
+                    return
+                }
+                
+                if let documents = querySnapshot?.documents, !documents.isEmpty {
+                    DispatchQueue.main.async {
+                        self?.showAlert(title: "👍", message: "Already in your likes!")
+                    }
+                    return
+                }
+                
+                // add new likes
+                self?.db.collection("likes").addDocument(data: likeData) { error in
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            print("Error adding like: \(error)")
+                            self?.showAlert(title: "Error", message: "Failed to save like")
+                        } else {
+                            self?.showAlert(title: "👍", message: "Added to likes!")
+                        }
+                    }
+                }
+            }
     }
     
     func getRandomPhoto() {
         let baseURL = "https://api.unsplash.com/photos/random"
         let accessKey = "LqGBgAw6UCbhjpxEC2v5Fto7cqx29XHR8VELKunT3kw"
-        let foods = ["pizza", "burger", "sushi", "pasta", "tacos", "ramen", "curry"]
+        let foods = ["pizza", "burger", "sushi", "pasta", "tacos", "ramen", "curry", "dessert", "soup", "sandwich"]
         let query = foods.randomElement() ?? "food"
         let urlString = "\(baseURL)?client_id=\(accessKey)&query=\(query)"
         
@@ -130,31 +176,60 @@ class ViewController: UIViewController {
         }
         
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            let json = try! JSONSerialization.jsonObject(with: data!, options: []) as! [String: Any]
-            let urls = json["urls"] as! [String: Any]
-            let imageUrlString = urls["regular"] as! String
-            let imageUrl = URL(string: imageUrlString)!
+            guard let data = data else {
+                print("No data received")
+                return
+            }
             
-            // Save Image URL
-            self?.currentImageUrl = imageUrlString
-            
-            self?.downloadImage(from: imageUrl)
+            do {
+                let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String: Any]
+                let urls = json["urls"] as! [String: Any]
+                let imageUrlString = urls["regular"] as! String
+                let imageUrl = URL(string: imageUrlString)!
+                
+                //
+                let user = json["user"] as? [String: Any]
+                self?.currentImageInfo = [
+                    "imageUrl": imageUrlString,
+                    "imageId": json["id"] as? String ?? "",
+                    "description": json["alt_description"] as? String ?? "Delicious \(query)",
+                    "photographer": user?["name"] as? String ?? "Unknown",
+                    "photographerUrl": user?["links"] as? [String: Any]?["html"] as? String ?? "",
+                    "foodType": query
+                ]
+                
+                self?.downloadImage(from: imageUrl)
+            } catch {
+                print("JSON parsing error: \(error)")
+            }
         }.resume()
     }
     
     private func downloadImage(from url: URL) {
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            let image = UIImage(data: data!)!
+            guard let data = data, let image = UIImage(data: data) else {
+                print("Failed to load image")
+                return
+            }
             
             DispatchQueue.main.async {
                 self?.imageView.image = image
             }
         }.resume()
     }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
 }
 
-// LikesViewController.swift
+// Firebase版本的LikesViewController
 class LikesViewController: UIViewController {
+    
+    var userId: String = ""
+    private let db = Firestore.firestore()
     
     private let titleLabel: UILabel = {
         let label = UILabel()
@@ -175,7 +250,6 @@ class LikesViewController: UIViewController {
         return button
     }()
     
-    // Liked Picture Layout
     private let collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.itemSize = CGSize(width: 150, height: 150)
@@ -186,16 +260,14 @@ class LikesViewController: UIViewController {
         return collectionView
     }()
     
-    private var likedImages: [String] = []
+    private var likedImages: [LikedImage] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
         
-        // loading liked images
-        likedImages = UserDefaults.standard.array(forKey: "likedImages") as? [String] ?? []
-        
         setupUI()
+        loadLikedImages()
     }
     
     private func setupUI() {
@@ -210,8 +282,40 @@ class LikesViewController: UIViewController {
         closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
         
         collectionView.dataSource = self
+        collectionView.delegate = self
         collectionView.register(ImageCell.self, forCellWithReuseIdentifier: "ImageCell")
-        
+    }
+    
+    private func loadLikedImages() {
+        db.collection("likes")
+            .whereField("userId", isEqualTo: userId)
+            .order(by: "timestamp", descending: true)
+            .getDocuments { [weak self] (querySnapshot, error) in
+                
+                if let error = error {
+                    print("Error getting likes: \(error)")
+                    return
+                }
+                
+                var images: [LikedImage] = []
+                
+                for document in querySnapshot!.documents {
+                    let data = document.data()
+                    let likedImage = LikedImage(
+                        id: document.documentID,
+                        imageUrl: data["imageUrl"] as? String ?? "",
+                        description: data["description"] as? String ?? "",
+                        photographer: data["photographer"] as? String ?? "",
+                        foodType: data["foodType"] as? String ?? ""
+                    )
+                    images.append(likedImage)
+                }
+                
+                DispatchQueue.main.async {
+                    self?.likedImages = images
+                    self?.collectionView.reloadData()
+                }
+            }
     }
     
     @objc private func closeButtonTapped() {
@@ -219,21 +323,55 @@ class LikesViewController: UIViewController {
     }
 }
 
-// CollectionView
-extension LikesViewController: UICollectionViewDataSource {
+extension LikesViewController: UICollectionViewDataSource, UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return likedImages.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ImageCell", for: indexPath) as! ImageCell
-        let imageUrlString = likedImages[indexPath.item]
-        cell.loadImage(from: imageUrlString)
+        let likedImage = likedImages[indexPath.item]
+        cell.loadImage(from: likedImage.imageUrl)
         return cell
+    }
+    
+    // 长按删除功能
+    func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
+        let likedImage = likedImages[indexPath.item]
+        
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            let deleteAction = UIAction(title: "Remove from Likes", image: UIImage(systemName: "trash"), attributes: .destructive) { [weak self] _ in
+                self?.removeLike(at: indexPath)
+            }
+            return UIMenu(title: "", children: [deleteAction])
+        }
+    }
+    
+    private func removeLike(at indexPath: IndexPath) {
+        let likedImage = likedImages[indexPath.item]
+        
+        db.collection("likes").document(likedImage.id).delete { [weak self] error in
+            if let error = error {
+                print("Error removing like: \(error)")
+            } else {
+                DispatchQueue.main.async {
+                    self?.likedImages.remove(at: indexPath.item)
+                    self?.collectionView.deleteItems(at: [indexPath])
+                }
+            }
+        }
     }
 }
 
-// Image Cell
+//
+struct LikedImage {
+    let id: String
+    let imageUrl: String
+    let description: String
+    let photographer: String
+    let foodType: String
+}
+
 class ImageCell: UICollectionViewCell {
     private let imageView: UIImageView = {
         let imageView = UIImageView()
@@ -254,7 +392,14 @@ class ImageCell: UICollectionViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        imageView.frame = contentView.bounds
+    }
+    
     func loadImage(from urlString: String) {
+        imageView.image = nil
+        
         guard let url = URL(string: urlString) else { return }
         
         URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
