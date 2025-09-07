@@ -12,26 +12,27 @@ class ViewController: UIViewController {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFill
         imageView.backgroundColor = .white
+        imageView.clipsToBounds = true // Add this to prevent image overflow
         return imageView
     }()
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemPink
         view.addSubview(imageView)
         imageView.frame = CGRect(x: 0, y: 0, width: 300, height: 300)
         imageView.center = view.center
-
+        
         getRandomPhoto()
     }
-
+    
     func getRandomPhoto() {
-        let urlString = "https://source.unsplash.com/random/600x600"
-        guard let url = URL(string: urlString),
-              let data = try? Data(contentsOf: url) else {
+        let baseURL = "https://api.unsplash.com/photos/random"
+        let accessKey = "LqGBgAw6UCbhjpxEC2v5Fto7cqx29XHR8VELKunT3kw"
+        let urlString = "\(baseURL)?client_id=\(accessKey)"
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL")
             return
         }
-        imageView.image = UIImage(data: data)
     }
 }
-
