@@ -54,7 +54,7 @@ class ViewController: UIViewController {
                     //Converts the string to a URL object, ! force unwrap, assumes the URL format is correct
                     let imageUrl = URL(string: imageUrlString)!
             
-                    //Calls the image download function, self? safe call because there is a weak sel
+                    //Calls the image download function, self? safe call because there is a weak self
                     self?.downloadImage(from: imageUrl)
                 }.resume()
             }
