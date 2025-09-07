@@ -8,6 +8,7 @@
 import UIKit
 
 class ViewController: UIViewController {
+    
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "What should I eat today?"
@@ -22,6 +23,7 @@ class ViewController: UIViewController {
         imageView.contentMode = .scaleAspectFill
         imageView.backgroundColor = .white
         imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 20
         return imageView
     }()
     
@@ -30,7 +32,7 @@ class ViewController: UIViewController {
         button.setTitle("Change One", for: .normal)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
         button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = .systemBlue
+        button.backgroundColor = .systemOrange
         button.layer.cornerRadius = 10
         return button
     }()
@@ -45,10 +47,10 @@ class ViewController: UIViewController {
         view.addSubview(refreshButton)
         
         // Set frames
-        titleLabel.frame = CGRect(x: 20, y: 100, width: view.frame.width - 40, height: 40)
+        titleLabel.frame = CGRect(x: 20, y: 150, width: view.frame.width - 40, height: 40)
         imageView.frame = CGRect(x: 0, y: 0, width: 300, height: 300)
         imageView.center = view.center
-        refreshButton.frame = CGRect(x: 50, y: view.frame.height - 150, width: view.frame.width - 100, height: 50)
+        refreshButton.frame = CGRect(x: 50, y: view.frame.height - 200, width: view.frame.width - 100, height: 50)
         
         // Button action
         refreshButton.addTarget(self, action: #selector(refreshButtonTapped), for: .touchUpInside)
@@ -66,6 +68,7 @@ class ViewController: UIViewController {
         let foods = ["pizza", "burger", "sushi", "pasta", "tacos", "ramen", "curry"]
         let query = foods.randomElement() ?? "food"
         let urlString = "\(baseURL)?client_id=\(accessKey)&query=\(query)"
+        
         guard let url = URL(string: urlString) else {
             print("Invalid URL")
             return
