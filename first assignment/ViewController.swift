@@ -194,7 +194,7 @@ class ViewController: UIViewController {
                     "imageId": json["id"] as? String ?? "",
                     "description": json["alt_description"] as? String ?? "Delicious \(query)",
                     "photographer": user?["name"] as? String ?? "Unknown",
-                    "photographerUrl": user?["links"] as? [String: Any]?["html"] as? String ?? "",
+                    "photographerUrl": (user?["links"] as? [String: Any])?["html"] as? String ?? "",
                     "foodType": query
                 ]
                 
