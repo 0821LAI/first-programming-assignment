@@ -8,6 +8,15 @@
 import UIKit
 
 class ViewController: UIViewController {
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "What should I eat today?"
+        label.font = UIFont.boldSystemFont(ofSize: 24)
+        label.textAlignment = .center
+        label.textColor = .black
+        return label
+    }()
+    
     private let imageView: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFill
@@ -16,13 +25,38 @@ class ViewController: UIViewController {
         return imageView
     }()
     
+    private let refreshButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Change One", for: .normal)
+        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = .systemBlue
+        button.layer.cornerRadius = 10
+        return button
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
+        
+        // Enable to see on the Screen
+        view.addSubview(titleLabel)
         view.addSubview(imageView)
+        view.addSubview(refreshButton)
+        
+        // Set frames
+        titleLabel.frame = CGRect(x: 20, y: 100, width: view.frame.width - 40, height: 40)
         imageView.frame = CGRect(x: 0, y: 0, width: 300, height: 300)
         imageView.center = view.center
+        refreshButton.frame = CGRect(x: 50, y: view.frame.height - 150, width: view.frame.width - 100, height: 50)
         
+        // Button action
+        refreshButton.addTarget(self, action: #selector(refreshButtonTapped), for: .touchUpInside)
+        
+        getRandomPhoto()
+    }
+    
+    @objc private func refreshButtonTapped() {
         getRandomPhoto()
     }
     
