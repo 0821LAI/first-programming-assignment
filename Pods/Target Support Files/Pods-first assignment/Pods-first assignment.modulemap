@@ -1,6 +1,0 @@
-framework module Pods_first_assignment {
-  umbrella header "Pods-first assignment-umbrella.h"
-
-  export *
-  module * { export * }
-}
