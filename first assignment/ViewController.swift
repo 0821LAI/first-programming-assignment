@@ -262,6 +262,7 @@ class LikesViewController: UIViewController {
     }()
     
     private var likedImages: [LikedImage] = []
+    private var noLikesLabel: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -285,6 +286,16 @@ class LikesViewController: UIViewController {
         collectionView.dataSource = self
         collectionView.delegate = self
         collectionView.register(ImageCell.self, forCellWithReuseIdentifier: "ImageCell")
+        
+        // No liked food label
+        noLikesLabel = UILabel()
+        noLikesLabel.text = "No liked foods yet!\nGo back and like some food! 🍕"
+        noLikesLabel.font = UIFont.systemFont(ofSize: 18)
+        noLikesLabel.textAlignment = .center
+        noLikesLabel.numberOfLines = 0
+        noLikesLabel.textColor = .gray
+        noLikesLabel.frame = CGRect(x: 20, y: 300, width: view.frame.width - 40, height: 100)
+        view.addSubview(noLikesLabel)
     }
     
     private func loadLikedImages() {
@@ -315,12 +326,23 @@ class LikesViewController: UIViewController {
                 DispatchQueue.main.async {
                     self?.likedImages = images
                     self?.collectionView.reloadData()
+                    self?.updateLikesView()
                 }
             }
     }
     
     @objc private func closeButtonTapped() {
         dismiss(animated: true)
+    }
+    
+    private func updateLikesView() {
+        if likedImages.isEmpty {
+            collectionView.isHidden = true
+            noLikesLabel.isHidden = false
+        } else {
+            collectionView.isHidden = false
+            noLikesLabel.isHidden = true
+        }
     }
 }
 
@@ -358,13 +380,13 @@ extension LikesViewController: UICollectionViewDataSource, UICollectionViewDeleg
                 DispatchQueue.main.async {
                     self?.likedImages.remove(at: indexPath.item)
                     self?.collectionView.deleteItems(at: [indexPath])
+                    self?.updateLikesView()
                 }
             }
         }
     }
 }
 
-//
 struct LikedImage {
     let id: String
     let imageUrl: String
